@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum SeatClass {
+  ECONOMY
+  BUSINESS
+  FIRST_CLASS
+}
+
+enum FlightStatus {
+  SCHEDULED
+  DELAYED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  bookings  Booking[] 
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Flight {
+  id                     Int       @id @default(autoincrement())
+  flightNumber           String    @unique
+  departureTime          DateTime
+  arrivalTime            DateTime
+  origin                 String
+  destination            String
+  bookings               Booking[] 
+  seats                  Seat[] 
+
+  economySeatsAvailable  Int       @default(0)
+  businessSeatsAvailable Int       @default(0)
+  firstClassSeatsAvailable Int     @default(0)
+
+  status                 FlightStatus @default(SCHEDULED)
+  airlineId              Int
+  airline                Airline   @relation(fields: [airlineId], references: [id])
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  deletedAt              DateTime?
+}
+
+model Booking {
+  id          Int        @id @default(autoincrement())
+  createdAt   DateTime    @default(now())
+  bookingDate DateTime    @default(now())
+  totalAmount Float
+
+  user        User        @relation(fields: [userId], references: [id])
+  userId      Int
+
+  flight      Flight      @relation(fields: [flightId], references: [id])
+  flightId    Int
+
+  seatClass   SeatClass
+
+  payments    Payment[] 
+  seats       Seat[] 
+
+  status      String      @default("Active") // Could be Active, Cancelled, or Completed
+  deletedAt   DateTime?
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  amount       Float
+  status       PaymentStatus @default(PENDING)
+  paymentMethod String?      // e.g., Credit Card, PayPal
+  transactionId String?      // Unique identifier from the payment gateway
+
+  createdAt    DateTime      @default(now())
+
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+  bookingId    Int
+}
+
+model Seat {
+  id         Int       @id @default(autoincrement())
+  seatNumber String
+  seatClass  SeatClass
+  isBooked   Boolean   @default(false)
+
+  flight     Flight    @relation(fields: [flightId], references: [id])
+  flightId   Int
+
+  booking    Booking?  @relation(fields: [bookingId], references: [id])
+  bookingId  Int?
+}
+
+model Airline {
+  id        Int       @id @default(autoincrement())
+  name      String
+  code      String    @unique // e.g., AA for American Airlines
+  country   String
+
+  flights   Flight[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
